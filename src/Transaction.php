@@ -16,6 +16,8 @@ use Illuminate\Database\Connection;
  */
 class Transaction
 {
+    use ConfigTraits;
+
     /** @var int $deleteTransactionId The current delete transaction ID */
     private static $deleteTransactionId;
 
@@ -24,9 +26,6 @@ class Transaction
 
     /** @var array $traits Cache of the traits used by models we are recovering */
     private static $traits = [];
-
-    /** @var callable $callbackGetUserId Function to be executed to get the logged in user ID */
-    private static $callbackGetUserId;
 
     /**
      * Return the current delete transaction ID, creating a new ID if none currently exists
@@ -53,10 +52,10 @@ class Transaction
         // Create record of new transaction in the database
 
         $deleteTransaction = new DeleteTransaction();
-        $deleteTransaction->deletedById = call_user_func(config('TransactionalSoftDeletes.callback_get_user_id'));
+        $deleteTransaction->setColumn('deleted_by_id', self::getUserId());
         $deleteTransaction->save();
 
-        // Store the transaction ID for subsequent calls
+        // Store the transaction ID in static variable for use in subsequent delete actions
 
         self::$deleteTransactionId = $deleteTransaction->id;
 
@@ -66,7 +65,7 @@ class Transaction
 
         // Return the transaction ID
 
-        return $deleteTransaction->id;
+        return $deleteTransaction->getColumn('id');
     }
 
     /**
@@ -97,15 +96,6 @@ class Transaction
     }
 
     /**
-     * Purge all transactions from the database tables
-     */
-    public static function truncate(): void
-    {
-        DeleteTransaction::truncate();
-        DeleteTransactionLog::truncate();
-    }
-
-    /**
      * Restore all records deleted by a transaction in bulk
      *
      * @param int $deleteTransactionId
@@ -131,7 +121,10 @@ class Transaction
 
         // Identify all records that were deleted in the same transaction
 
-        $deleteTransactionLogs = DeleteTransactionLog::whereDeleteTransactionId($deleteTransactionId)->get();
+
+        $deleteTransactionLogs = DeleteTransactionLog
+            ::where(self::column('delete_transaction_id'), '=', $deleteTransactionId)
+            ->get();
 
         // Iterate through all of the deleted items
 
@@ -141,15 +134,15 @@ class Transaction
             // we can't actually restore from. For safety I'm going to ensure the model is actually capable of
             // restoration before using it
 
-            if (!in_array($deleteTransactionLog->modelClass, self::$traits))
+            if (!in_array($deleteTransactionLog->getColumn('model_class'), self::$traits))
             {
                 // We haven't already checked if this class uses the trait, perform the search
 
-                $traits = class_uses_recursive($deleteTransactionLog->modelClass);
+                $traits = class_uses_recursive($deleteTransactionLog->getColumn('model_class'));
 
                 if (in_array(Model::class, $traits))
                 {
-                    self::$traits[] = $deleteTransactionLog->modelClass;
+                    self::$traits[] = $deleteTransactionLog->getColumn('model_class');
                 }
                 else
                 {
@@ -164,9 +157,10 @@ class Transaction
             // Restore each item by using the model class and row ID stored in the `delete_transaction_log` table
 
             /** @var Model $model */
-            $model = call_user_func([$deleteTransactionLog->modelClass, 'withTrashed'])
-                ->whereId($deleteTransactionLog->rowId)
-                ->first();
+            $model = call_user_func(
+                [$deleteTransactionLog->{config('TransactionalSoftDeletes.column_model_class)')}, 'withTrashed']
+            )->whereId($deleteTransactionLog->getColumn('row_id'))
+             ->first();
 
             // If something went wrong, rollback the action
 
@@ -181,7 +175,8 @@ class Transaction
         // Now that everything has been restored, mark the whole transaction as restored
 
         $deleteTransaction = DeleteTransaction::whereId($deleteTransactionId)->first();
-        $deleteTransaction->restored_at = Transaction::getTimestamp();
+        $deleteTransaction->setColumn('restored_at', Transaction::getTimestamp());
+        $deleteTransaction->setColumn('restored_by_id', self::getUserId());
 
         // If something went wrong, rollback the action
 
@@ -207,9 +202,10 @@ class Transaction
      */
     public static function deleteIfEmpty(int $deleteTransactionId): int
     {
-        $countRemaining = DeleteTransactionLog::whereDeleteTransactionId($deleteTransactionId)
-                                              ->whereNull('restored_at')
-                                              ->count();
+        $countRemaining = DeleteTransactionLog
+            ::where(self::column('delete_transaction_id'), '=', $deleteTransactionId)
+            ->whereNull(self::column('restored_at'))
+            ->count();
 
         if ($countRemaining == 0)
         {
@@ -219,32 +215,12 @@ class Transaction
 
             if ($deleteTransaction)
             {
-                $deleteTransaction->restoredById = call_user_func(config('TransactionalSoftDeletes.callback_get_user_id'));
+                $deleteTransaction->restoredById = self::getUserId();
                 $deleteTransaction->restoredAt = self::getTimestamp();
                 $deleteTransaction->save();
             }
         }
 
         return $countRemaining;
-    }
-
-    protected static function getUserId()
-    {
-        if (!isset(self::$callbackGetUserId))
-        {
-            self::$callbackGetUserId = config('TransactionalSoftDeletes.callback_get_user_id');
-
-            // If no callback is defined we will because to storing null in the deleted_by_id column
-
-            if (!is_callable(self::$callbackGetUserId))
-            {
-                self::$callbackGetUserId = function ()
-                {
-                    return null;
-                };
-            }
-        }
-
-        return call_user_func(self::$callbackGetUserId);
     }
 }

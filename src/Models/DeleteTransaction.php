@@ -1,8 +1,9 @@
 <?php
 
-namespace Dddaaammmooo\TransactionalSoftDeletes;
+namespace Dddaaammmooo\TransactionalSoftDeletes\Models;
 
 use Carbon\Carbon;
+use Dddaaammmooo\TransactionalSoftDeletes\DatabaseTrait;
 use Eloquent;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -30,7 +31,7 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class DeleteTransaction extends Eloquent
 {
-    use CamelCaseAttributesTrait;
+    use DatabaseTrait;
 
     /** @var string $table */
     protected $table = 'delete_transaction';

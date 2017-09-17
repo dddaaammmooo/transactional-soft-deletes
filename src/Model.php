@@ -15,6 +15,8 @@ use Exception;
  */
 class Model extends Eloquent
 {
+    use ConfigTraits;
+
     /**
      * Indicates if the model is currently force deleting rather than soft deleting.
      *
@@ -96,8 +98,8 @@ class Model extends Eloquent
             $deleteTransactionLog = new DeleteTransactionLog(
                 [
                     $this->getDeletedAtColumn() => Transaction::getDeleteTransactionId(),
-                    'modelClass'                => get_class($model),
-                    'rowId'                     => $this->id,
+                    self::column('model_class') => get_class($model),
+                    self::column('row_id')      => $this->{self::column('id')},
                 ]
             );
 
@@ -105,7 +107,6 @@ class Model extends Eloquent
             {
                 // Mark the model as deleted by inserting the delete transaction ID
 
-                /** @noinspection PhpUndefinedClassInspection */
                 $this->{$this->getDeletedAtColumn()} = Transaction::getDeleteTransactionId();
 
                 if (!$this->save())
@@ -153,9 +154,11 @@ class Model extends Eloquent
             return false;
         }
 
-        // Restore the current record
+        // Grab the current delete transaction ID
 
         $deleteTransactionId = $this->{$this->getDeletedAtColumn()};
+
+        // Restore the current record
 
         $this->{$this->getDeletedAtColumn()} = null;
         $this->exists = true;
@@ -169,15 +172,16 @@ class Model extends Eloquent
             return false;
         }
 
-        // Mark it as restored in the transaction log
+        // Mark the same record as restored in the transaction log
 
         /** @var DeleteTransactionLog $deleteTransactionLog */
 
-        $deleteTransactionLog = DeleteTransactionLog::whereModelClass(get_called_class())
-                                                    ->whereRowId($this->id)
+        $deleteTransactionLog = DeleteTransactionLog::where(self::column('model_class)'), '=', get_called_class())
+                                                    ->where(self::column('row_id)'), '=', $this->id)
                                                     ->first();
-        $deleteTransactionLog->restoredById = call_user_func(config('TransactionalSoftDeletes.callback_get_user_id'));
-        $deleteTransactionLog->restoredAt = Transaction::getTimestamp();
+
+        $deleteTransactionLog->setColumn('restored_by_id', self::getUserId());
+        $deleteTransactionLog->setColumn('restored_at', Transaction::getTimestamp());
 
         if (!$deleteTransactionLog->save())
         {
@@ -186,7 +190,11 @@ class Model extends Eloquent
             return false;
         }
 
+        // If everything in the transaction has been restored mark the whole transaction as restored
+
         Transaction::deleteIfEmpty($deleteTransactionId);
+
+        // Commit changes to the database
 
         $this->getConnection()->commit();
         $this->fireModelEvent('restored', false);
@@ -249,6 +257,15 @@ class Model extends Eloquent
     /**
      * Get the name of the transactional deletion column
      *
+     * This can be overridden by the programmer via the configuration file as a global method for all models, or as a
+     * class 'DELETED_AT' constant for overriding individual models
+     *
+     * Priority:
+     *
+     *      - Individual Class override
+     *      - User configuration file
+     *      - Default package configuration
+     *
      * @return string
      */
     public function getDeletedAtColumn(): string
@@ -256,8 +273,7 @@ class Model extends Eloquent
         /** @noinspection PhpUndefinedClassConstantInspection */
         return defined('static::DELETED_AT')
             ? static::DELETED_AT
-            : config('TransactionalSoftDeletes.deleted_at_column')
-                ?: 'delete_transaction_id';
+            : config('TransactionalSoftDeletes.column_delete_transaction_id');
     }
 
     /**

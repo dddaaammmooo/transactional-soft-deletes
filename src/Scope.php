@@ -4,7 +4,6 @@ namespace Dddaaammmooo\TransactionalSoftDeletes;
 
 use Illuminate\Database\Eloquent;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 
 /**
  * Class Scope
@@ -30,12 +29,12 @@ class Scope implements Eloquent\Scope
     /**
      * Apply the scope to a given Eloquent query builder.
      *
-     * @param Builder $builder
-     * @param Model   $model
+     * @param Builder        $builder
+     * @param Eloquent\Model $model
      */
-    public function apply(Builder $builder, Model $model)
+    public function apply(Builder $builder, Eloquent\Model $model)
     {
-        /** @var TransactionalSoftDeletes $model */
+        /** @var Model $model */
         $builder->whereNull($model->getQualifiedDeletedAtColumn());
     }
 
@@ -70,7 +69,7 @@ class Scope implements Eloquent\Scope
      */
     protected function getDeletedAtColumn(Builder $builder)
     {
-        /** @var TransactionalSoftDeletes $model */
+        /** @var Model $model */
         $model = $builder->getModel();
 
         return $model->getQualifiedDeletedAtColumn();
@@ -89,7 +88,7 @@ class Scope implements Eloquent\Scope
             /** @noinspection PhpUndefinedMethodInspection */
             $builder->withTrashed();
 
-            /** @var TransactionalSoftDeletes $model */
+            /** @var Model $model */
             foreach ($builder->get() as $model)
             {
                 $model->restore();
@@ -123,7 +122,7 @@ class Scope implements Eloquent\Scope
         $builder->macro(
             'withoutTrashed', function (Builder $builder)
         {
-            /** @var TransactionalSoftDeletes $model */
+            /** @var Model $model */
             $model = $builder->getModel();
 
             $builder->withoutGlobalScope($this)->whereNull(
@@ -145,7 +144,7 @@ class Scope implements Eloquent\Scope
         $builder->macro(
             'onlyTrashed', function (Builder $builder)
         {
-            /** @var TransactionalSoftDeletes $model */
+            /** @var Model $model */
             $model = $builder->getModel();
 
             $builder->withoutGlobalScope($this)->whereNotNull(

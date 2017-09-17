@@ -2,9 +2,17 @@
 
 return [
 
-    // Update the following to the name of the table column to use when marking records as deleted
+    // The following defines the default column names used by the supplied database migration script, if any of
+    // the column names are updated these values must be updated
 
-    'deleted_at_column' => 'delete_transaction_id',
+    'column_id' => 'id',
+    'column_delete_transaction_id' => 'delete_transaction_id',
+    'column_deleted_at' => 'deleted_at',
+    'column_deleted_by_id' => 'deleted_by_id',
+    'column_restored_at' => 'restored_at',
+    'column_restored_by_id' => 'restored_by_id',
+    'column_row_id' => 'row_id',
+    'column_model_class' => 'model_class',
 
     // Callback function used to retrieve the logged in users ID. If the value defined is not callable
     // the value will default to -1
