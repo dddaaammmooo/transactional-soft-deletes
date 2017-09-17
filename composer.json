@@ -2,6 +2,8 @@
     "name": "dddaaammmooo/transactional-soft-deletes",
     "description": "Allows for the soft deletion of Eloquent models with transactional recovery support",
     "license": "MIT",
+    "type": "library",
+    "keywords": ["laravel"],
     "authors": [
         {
             "name": "Damian Sloane",
@@ -13,4 +15,9 @@
         "php": ">=7.1.0",
         "laravel/framework": "5.5.*"
     },
+    "autoload": {
+        "psr-4": {
+            "Dddaaammmooo\\TransactionalSoftDeletes\\": "src/"
+        }
+    }
 }
