@@ -1,0 +1,25 @@
+{
+    "name": "dddaaammmooo/transactional-soft-deletes",
+    "description": "Allows for the soft deletion of Eloquent models with transactional recovery support",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Damian Sloane",
+            "email": "dddaaammmooo@hotmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "php": ">=7.1.0",
+        "laravel/framework": "5.5.*"
+    },
+    "autoload": {
+        "classmap": [
+            "database"
+        ],
+        "psr-4": {
+            "App\\": "app/",
+            "dddaaammmooo\\transactional-soft-deletes\\": "packages/dddaaammmooo/transactional-soft-deletes/src"
+        }
+    },
+}
