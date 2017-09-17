@@ -21,14 +21,9 @@ class Provider extends ServiceProvider
             ], 'config'
         );
 
-        // Publish migrations
+        // Load migrations
 
-        $this->publishes(
-            [
-                __DIR__ . '/Migrations/2017_09_16_013221_create_delete_transaction_table.php'     => database_path('migrations'),
-                __DIR__ . '/Migrations/2017_09_16_015207_create_delete_transaction_log_table.php' => database_path('migrations'),
-            ], 'migrations'
-        );
+        $this->loadMigrationsFrom(__DIR__.'/Migrations');
     }
 
     /**

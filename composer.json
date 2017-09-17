@@ -19,5 +19,15 @@
         "psr-4": {
             "Dddaaammmooo\\TransactionalSoftDeletes\\": "src/"
         }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Dddaaammmooo\\TransactionalSoftDeletes\\Provider"
+            ],
+            "aliases": {
+                "Transaction": "Dddaaammmooo\\TransactionalSoftDeletes\\Transaction"
+            }
+        }
     }
 }
