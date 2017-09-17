@@ -3,6 +3,7 @@
 namespace Dddaaammmooo\TransactionalSoftDeletes;
 
 use Closure;
+use Dddaaammmooo\TransactionalSoftDeletes\Models\DeleteTransactionLog;
 use Eloquent;
 use Exception;
 
@@ -94,7 +95,6 @@ class Model extends Eloquent
 
         foreach ($models as $model)
         {
-            /** @noinspection PhpUndefinedClassInspection */
             $deleteTransactionLog = new DeleteTransactionLog(
                 [
                     $this->getDeletedAtColumn() => Transaction::getDeleteTransactionId(),
@@ -132,6 +132,16 @@ class Model extends Eloquent
      */
     public function restore(): bool
     {
+        // Make sure the model is actually deleted
+
+        if (!$this->trashed()) {
+            return false;
+        }
+
+        // Grab the current delete transaction ID
+
+        $deleteTransactionId = $this->{$this->getDeletedAtColumn()};
+
         // Set mutex on the model to ensure we have any conflicting action
 
         if ($this->fireModelEvent('restoring') === false)
@@ -154,10 +164,6 @@ class Model extends Eloquent
             return false;
         }
 
-        // Grab the current delete transaction ID
-
-        $deleteTransactionId = $this->{$this->getDeletedAtColumn()};
-
         // Restore the current record
 
         $this->{$this->getDeletedAtColumn()} = null;
@@ -176,8 +182,8 @@ class Model extends Eloquent
 
         /** @var DeleteTransactionLog $deleteTransactionLog */
 
-        $deleteTransactionLog = DeleteTransactionLog::where(self::column('model_class)'), '=', get_called_class())
-                                                    ->where(self::column('row_id)'), '=', $this->id)
+        $deleteTransactionLog = DeleteTransactionLog::where(self::column('model_class'), '=', get_called_class())
+                                                    ->where(self::column('row_id'), '=', $this->id)
                                                     ->first();
 
         $deleteTransactionLog->setColumn('restored_by_id', self::getUserId());
@@ -273,7 +279,7 @@ class Model extends Eloquent
         /** @noinspection PhpUndefinedClassConstantInspection */
         return defined('static::DELETED_AT')
             ? static::DELETED_AT
-            : config('TransactionalSoftDeletes.column_delete_transaction_id');
+            : config('transactional-soft-deletes.column_delete_transaction_id');
     }
 
     /**

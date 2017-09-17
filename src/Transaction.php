@@ -3,6 +3,8 @@
 namespace Dddaaammmooo\TransactionalSoftDeletes;
 
 use Carbon\Carbon;
+use Dddaaammmooo\TransactionalSoftDeletes\Models\DeleteTransaction;
+use Dddaaammmooo\TransactionalSoftDeletes\Models\DeleteTransactionLog;
 use Exception;
 use Illuminate\Database\Connection;
 
@@ -24,8 +26,8 @@ class Transaction
     /** @var Carbon $timestamp The current delete transaction timestamp */
     private static $timestamp;
 
-    /** @var array $traits Cache of the traits used by models we are recovering */
-    private static $traits = [];
+    /** @var array $modelInheritance Cache of the traits used by models we are recovering */
+    private static $modelInheritance = [];
 
     /**
      * Return the current delete transaction ID, creating a new ID if none currently exists
@@ -121,9 +123,9 @@ class Transaction
 
         // Identify all records that were deleted in the same transaction
 
-
         $deleteTransactionLogs = DeleteTransactionLog
             ::where(self::column('delete_transaction_id'), '=', $deleteTransactionId)
+            ->whereNull(self::column('restored_at'))
             ->get();
 
         // Iterate through all of the deleted items
@@ -134,15 +136,15 @@ class Transaction
             // we can't actually restore from. For safety I'm going to ensure the model is actually capable of
             // restoration before using it
 
-            if (!in_array($deleteTransactionLog->getColumn('model_class'), self::$traits))
+            $modelClass = $deleteTransactionLog->getColumn('model_class');
+
+            if (!in_array($modelClass, self::$modelInheritance))
             {
                 // We haven't already checked if this class uses the trait, perform the search
 
-                $traits = class_uses_recursive($deleteTransactionLog->getColumn('model_class'));
-
-                if (in_array(Model::class, $traits))
+                if (is_subclass_of($modelClass, Model::class))
                 {
-                    self::$traits[] = $deleteTransactionLog->getColumn('model_class');
+                    self::$modelInheritance[] = $modelClass;
                 }
                 else
                 {
@@ -158,7 +160,7 @@ class Transaction
 
             /** @var Model $model */
             $model = call_user_func(
-                [$deleteTransactionLog->{config('TransactionalSoftDeletes.column_model_class)')}, 'withTrashed']
+                [$modelClass, 'withTrashed']
             )->whereId($deleteTransactionLog->getColumn('row_id'))
              ->first();
 

@@ -17,7 +17,7 @@ class Provider extends ServiceProvider
 
         $this->publishes(
             [
-                __DIR__ . '/Config/TransactionalSoftDeletes.php' => config_path('TransactionalSoftDeletes.php'),
+                __DIR__ . '/Config/transactional-soft-deletes.php' => config_path('transactional-soft-deletes.php'),
             ], 'config'
         );
 
@@ -25,7 +25,7 @@ class Provider extends ServiceProvider
 
         $this->publishes(
             [
-                __DIR__ . '/Migrations/2017_09_16_013221_create_delete_transaction_table.php' => database_path('migrations'),
+                __DIR__ . '/Migrations/2017_09_16_013221_create_delete_transaction_table.php'     => database_path('migrations'),
                 __DIR__ . '/Migrations/2017_09_16_015207_create_delete_transaction_log_table.php' => database_path('migrations'),
             ], 'migrations'
         );
@@ -39,14 +39,14 @@ class Provider extends ServiceProvider
     public function register()
     {
         $this->mergeConfigFrom(
-            __DIR__ . '/Config/TransactionalSoftDeletes.php',
-            'TransactionalSoftDeletes'
+            __DIR__ . '/Config/transactional-soft-deletes.php',
+            'transactional-soft-deletes'
         );
 
-        if (!is_callable(config('TransactionalSoftDeletes.callback_get_user_id')))
+        if (!is_callable(config('transactional-soft-deletes.callback_get_user_id')))
         {
             config(
-                ['TransactionalSoftDeletes.callback_get_user_id' => function ()
+                ['transactional-soft-deletes.callback_get_user_id' => function ()
                 {
                     return -1;
                 }]

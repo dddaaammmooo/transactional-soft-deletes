@@ -16,12 +16,13 @@ trait DatabaseTrait
      * Set a value using the column names from the configuration file
      *
      * @param string $columnName The name of the database column
-     * @param mixed $value The value to set
+     * @param mixed  $value      The value to set
      * @return self
      */
     public function setColumn(string $columnName, $value): self
     {
-        $this->{config("TransactionalSoftDeleted.column_{$columnName}")} = $value;
+        $this->{config("transactional-soft-deletes.column_{$columnName}")} = $value;
+
         return $this;
     }
 
@@ -31,9 +32,9 @@ trait DatabaseTrait
      * @param string $columnName The name of the database column
      * @return mixed
      */
-    public function getColumn(string $columnName): mixed
+    public function getColumn(string $columnName): string
     {
-        return $this->{config("TransactionalSoftDeleted.column_{$columnName}")};
+        return $this->{config("transactional-soft-deletes.column_{$columnName}")} ?: '';
     }
 
     /**

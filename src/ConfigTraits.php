@@ -24,7 +24,7 @@ trait ConfigTraits
      */
     protected static function column($columnName): string
     {
-        return config("TransactionalSoftDeletes.column_{$columnName}");
+        return config("transactional-soft-deletes.column_{$columnName}") ?: '';
     }
 
     /**
@@ -36,18 +36,7 @@ trait ConfigTraits
     {
         if (!isset(self::$callbackGetUserId))
         {
-            self::$callbackGetUserId = self::column('callback_get_user_id');
-
-            // If no callback is defined we will because to storing -1 in the deleted_by_id column as the default
-            // schema we have created does not allow NULL values
-
-            if (!is_callable(self::$callbackGetUserId))
-            {
-                self::$callbackGetUserId = function ()
-                {
-                    return -1;
-                };
-            }
+            self::$callbackGetUserId = config('transactional-soft-deletes.callback_get_user_id');
         }
 
         return call_user_func(self::$callbackGetUserId);

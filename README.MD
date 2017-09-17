@@ -20,6 +20,43 @@ php artisan vendor:publish
 --provider="Cartalyst\Sentinel\Laravel\SentinelServiceProvider"
 ```
 
+Next you need to add the `Dddaaammmooo\TransactionalSoftDeletes\Provider` class to
+the `providers` section of your `/laravel/config/app.php` file.
+
+```php
+<?php
+return [
+    // ..
+
+    'providers' => [
+        // ...
+        Dddaaammmooo\TransactionalSoftDeletes\Provider::class,
+    ],
+    
+    // ..
+    
+];
+```
+
+Optionally you can create an alias for the transaction handling class by adding
+the following to the `alias` section of the `/laravel/config/app.php` file.
+
+```php
+<?php
+
+return [
+    // ..
+
+    'aliases' => [
+        // ...
+        'Transaction' => Dddaaammmooo\TransactionalSoftDeletes\Transaction::class,
+    ],
+    
+    // ..
+    
+];
+```
+
 Lastly run the migration to create the necessary deletion tables
 
 ```php
