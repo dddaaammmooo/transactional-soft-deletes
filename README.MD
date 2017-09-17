@@ -18,8 +18,7 @@ Then, deploy the default migration and configuration files to setup the required
 by running the following command:
 
 ```
-php artisan vendor:publish 
---provider="Cartalyst\Sentinel\Laravel\SentinelServiceProvider"
+php artisan vendor:publish --provider="Dddaaammmooo\TransactionalSoftDeletes"
 ```
 
 If you are happy with the default database schema you can now migrate to create the required tables.
