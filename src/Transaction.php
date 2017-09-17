@@ -199,6 +199,69 @@ class Transaction
     }
 
     /**
+     * Mark transaction as restored if there are no remaining deleted records associated with it
+     *
+     * @param int $deleteTransactionId
+     * @return int The number of deleted records still in the transaction
+     */
+    public static function restoreTransactionContainerIfEmpty(int $deleteTransactionId): int
+    {
+        $countDeleted = self::getDeletedItemsCount($deleteTransactionId);
+
+        if ($countDeleted == 0)
+        {
+            // There were no remaining records, we can mark the transaction as restored
+
+            $deleteTransaction = DeleteTransaction::whereId($deleteTransactionId)->first();
+
+            if ($deleteTransaction)
+            {
+                $deleteTransaction->setColumn('restored_by_id', self::getUserId());
+                $deleteTransaction->setColumn('restored_at', self::getTimestamp());
+                $deleteTransaction->save();
+            }
+        }
+
+        return $countDeleted;
+    }
+
+    /**
+     * Return the number of deleted items in the transaction
+     *
+     * @param int $deleteTransactionId
+     * @return int
+     */
+    public static function getDeletedItemsCount(int $deleteTransactionId): int
+    {
+        return DeleteTransactionLog
+            ::where(self::column('delete_transaction_id'), '=', $deleteTransactionId)
+            ->whereNull(self::column('restored_at'))
+            ->count();
+    }
+
+    /**
+     * Returns a count of deleted items in the requested transaction split by their model class
+     *
+     * @param int $deleteTransactionId
+     * @return array
+     */
+    public static function getDeletedItemsCountByClass(int $deleteTransactionId): array
+    {
+        $records = [];
+
+        $arrangedCollection = self::getArrangedCollection($deleteTransactionId);
+
+        // Iterate this array and retrieve the actual models that were deleted
+
+        foreach ($arrangedCollection as $modelClass => $ids)
+        {
+            $records[$modelClass] = count($ids);
+        }
+
+        return $records;
+    }
+
+    /**
      * Returns an array of deleted objects indexed by their class as stored in the database
      *
      * Not-Hydrated
@@ -215,7 +278,7 @@ class Transaction
      *      'App\Dog' => [object(Dog)#5, object(Dog)#6],
      * ]
      *
-     * @param int $deleteTransactionId
+     * @param int  $deleteTransactionId
      * @param bool $hydrate
      * @return array
      */
@@ -235,13 +298,13 @@ class Transaction
         // Convert the collection into an array of row ID's indexed by their model class
 
         $arrangedCollection = $deletedCollection->groupBy('model_class')
-                          ->transform(
-                              function ($item, $key)
-                              {
-                                  return $item->pluck(self::column('id'))->toArray();
-                              }
-                          )
-                          ->toArray();
+                                                ->transform(
+                                                    function ($item, $key)
+                                                    {
+                                                        return $item->pluck(self::column('id'))->toArray();
+                                                    }
+                                                )
+                                                ->toArray();
 
         // Iterate this array and retrieve the actual models that were deleted
 
@@ -253,7 +316,9 @@ class Transaction
                 $builder = call_user_func([$modelClass, 'withTrashed']);
                 $builder->whereIn(self::column('id'), $ids);
                 $records[$modelClass] = $builder->get();
-            } else {
+            }
+            else
+            {
                 $records[$modelClass] = $ids;
             }
         }
@@ -262,32 +327,31 @@ class Transaction
     }
 
     /**
-     * Mark transaction as restored if there are no remaining deleted records associated with it
+     * Create an array containing all row IDs deleted in the requested transaction indexed by their model class
      *
      * @param int $deleteTransactionId
-     * @return int The number of deleted records still in the transaction
+     * @return array
      */
-    public static function restoreTransactionContainerIfEmpty(int $deleteTransactionId): int
+    private static function getArrangedCollection(int $deleteTransactionId): array
     {
-        $countDeleted = DeleteTransactionLog
-            ::where(self::column('delete_transaction_id'), '=', $deleteTransactionId)
-            ->whereNull(self::column('restored_at'))
-            ->count();
+        // Grab the row ID and class of all deleted items in this transaction from the database
 
-        if ($countDeleted == 0)
-        {
-            // There were no remaining records, we can mark the transaction as restored
+        $deletedCollection =
+            DeleteTransactionLog::select(self::column('id'), self::column('model_class'))
+                                ->groupBy(self::column('model_class'))
+                                ->groupBy(self::column('id'))
+                                ->where(self::column('delete_transaction_id'), '=', $deleteTransactionId)
+                                ->get();
 
-            $deleteTransaction = DeleteTransaction::whereId($deleteTransactionId)->first();
+        // Convert the collection into an array of row ID's indexed by their model class
 
-            if ($deleteTransaction)
-            {
-                $deleteTransaction->setColumn('restored_by_id', self::getUserId());
-                $deleteTransaction->setColumn('restored_at', self::getTimestamp());
-                $deleteTransaction->save();
-            }
-        }
-
-        return $countDeleted;
+        return $deletedCollection->groupBy('model_class')
+                                 ->transform(
+                                     function ($item, $key)
+                                     {
+                                         return $item->pluck(self::column('id'))->toArray();
+                                     }
+                                 )
+                                 ->toArray();
     }
 }
