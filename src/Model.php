@@ -6,11 +6,16 @@ use Closure;
 use Dddaaammmooo\TransactionalSoftDeletes\Models\DeleteTransactionLog;
 use Eloquent;
 use Exception;
+use Illuminate\Database\Query\Builder;
 
 /**
  * Class TransactionalSoftDeletes
  *
  * This work was based off the Laravel SoftDeletes trait
+ *
+ * @method static Builder|self onlyTrashed()
+ * @method static Builder|self withTrashed()
+ * @method static Builder|self withoutTrashed()
  *
  * @package Dddaaammmooo\TransactionalSoftDeletes
  */

@@ -8,7 +8,6 @@ use Dddaaammmooo\TransactionalSoftDeletes\Models\DeleteTransactionLog;
 use Exception;
 use Illuminate\Database\Connection;
 use Illuminate\Database\Query\Builder;
-use Illuminate\Support\Collection;
 
 /**
  * Class Transaction
