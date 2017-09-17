@@ -1,17 +1,19 @@
 <?php
 
-namespace App\Cto\Database\TransactionalSoftDeletes;
+namespace Dddaaammmooo\TransactionalSoftDeletes;
 
-use App\Cto\Database\TransactionalSoftDeletes\Scope as TransactionalDeleteScope;
 use Closure;
+use Eloquent;
 use Exception;
 
 /**
- * App\Cto\Database\TransactionalSoftDelete\TransactionalSoftDeleteModel
+ * Class TransactionalSoftDeletes
  *
- * @mixin \Eloquent
+ * This work was based off the Laravel SoftDeletes trait
+ *
+ * @package Dddaaammmooo\TransactionalSoftDeletes
  */
-trait TransactionalSoftDeletesTrait
+class Model extends Eloquent
 {
     /**
      * Indicates if the model is currently force deleting rather than soft deleting.
@@ -21,15 +23,14 @@ trait TransactionalSoftDeletesTrait
     protected $forceDeleting = false;
 
     /**
-     * These sheningans took me an eternity to work out. There is a boot method buried in Laravel that looks
-     * for a method on every trait included in a class called bootClassName() and executes them. This is
-     * required in order to wire up the soft deletes properly on the Laravel query builder.
+     * Extend the parent boot method and add this to scope
      *
-     * @return void
+     * @throws Exception
      */
-    public static function bootTransactionalSoftDeletesTrait()
+    protected static function boot()
     {
-        static::addGlobalScope(new TransactionalDeleteScope());
+        parent::boot();
+        static::addGlobalScope(new Scope());
     }
 
     /**
@@ -65,8 +66,10 @@ trait TransactionalSoftDeletesTrait
 
     /**
      * Perform soft deletion of the model
+     *
+     * @return bool
      */
-    protected function runSoftDelete()
+    protected function runSoftDelete(): bool
     {
         // Grab the models without the global scopes attached
 
@@ -122,38 +125,11 @@ trait TransactionalSoftDeletesTrait
     }
 
     /**
-     * Delete transaction from database if there are no remaining records associated with it
-     *
-     * @param $deleteTransactionId
-     */
-    public function deleteTransactionIfEmpty($deleteTransactionId)
-    {
-        // Check if there are any remaining records
-
-        $countRemaining = DeleteTransactionLog::whereDeleteTransactionId($deleteTransactionId)
-                                              ->whereNull('restored_at')
-                                              ->count();
-
-        if ($countRemaining == 0)
-        {
-            // There were no remaining records, we can delete the transaction
-
-            $deleteTransaction = DeleteTransaction::whereId($deleteTransactionId)->first();
-
-            if ($deleteTransaction)
-            {
-                $deleteTransaction->restoredById = 3;
-                /** @noinspection PhpUndefinedClassInspection */
-                $deleteTransaction->restoredAt = Transaction::getTimestamp();
-                $deleteTransaction->save();
-            }
-        }
-    }
-
-    /**
      * Restore a soft-deleted model instance
+     *
+     * @return bool
      */
-    public function restore()
+    public function restore(): bool
     {
         // Set mutex on the model to ensure we have any conflicting action
 
@@ -196,71 +172,54 @@ trait TransactionalSoftDeletesTrait
         // Mark it as restored in the transaction log
 
         /** @var DeleteTransactionLog $deleteTransactionLog */
-        /** @noinspection PhpUndefinedMethodInspection */
-        $deleteTransactionLog = DeleteTransactionLog::getModel()
-                                                    ->newQueryWithoutScopes()
-                                                    ->whereModelClass(get_called_class())
+
+        $deleteTransactionLog = DeleteTransactionLog::whereModelClass(get_called_class())
                                                     ->whereRowId($this->id)
                                                     ->first();
-
-        $deleteTransactionLog->restoredById = 3;
-
-        /** @noinspection PhpUndefinedClassInspection */
+        $deleteTransactionLog->restoredById = call_user_func(config('TransactionalSoftDeletes.callback_get_user_id'));
         $deleteTransactionLog->restoredAt = Transaction::getTimestamp();
-        $deleteTransactionLog->save();
 
         if (!$deleteTransactionLog->save())
         {
-            // Something went wrong, rollback the action
-
             $this->fireModelEvent('restored', true);
 
             return false;
         }
 
-        // If there are no other items associated with the delete transaction, mark the entire transaction as restored
-
-        $this->deleteTransactionIfEmpty($deleteTransactionId);
-
-        // Persist the changes to the database
+        Transaction::deleteIfEmpty($deleteTransactionId);
 
         $this->getConnection()->commit();
-
-        // Release mutex on the model
-
         $this->fireModelEvent('restored', false);
 
         return true;
     }
 
     /**
-     * Determine if the model instance has been soft-deleted.
+     * Determine if the model instance has been soft-deleted
      *
      * @return bool
      */
-    public function trashed()
+    public function trashed(): bool
     {
         return !is_null($this->{$this->getDeletedAtColumn()});
     }
 
     /**
-     * Register a restoring model event with the dispatcher.
+     * Register a restoring model event with the dispatcher
      *
      * @param  Closure|string $callback
-     * @return void
      */
-    public static function restoring($callback)
+    public static function restoring($callback): void
     {
         static::registerModelEvent('restoring', $callback);
     }
 
     /**
-     * Register a restored model event with the dispatcher.
+     * Register a restored model event with the dispatcher
      *
      * @param  Closure|string $callback
-     * @return void
      */
-    public static function restored($callback)
+    public static function restored($callback): void
     {
         static::registerModelEvent('restored', $callback);
     }
@@ -270,7 +229,7 @@ trait TransactionalSoftDeletesTrait
      *
      * @return self
      */
-    public function newDeleteTransaction()
+    public function newDeleteTransaction(): self
     {
         Transaction::newDeleteTransactionId();
 
@@ -282,7 +241,7 @@ trait TransactionalSoftDeletesTrait
      *
      * @return bool
      */
-    public function isForceDeleting()
+    public function isForceDeleting(): bool
     {
         return $this->forceDeleting;
     }
@@ -292,10 +251,13 @@ trait TransactionalSoftDeletesTrait
      *
      * @return string
      */
-    public function getDeletedAtColumn()
+    public function getDeletedAtColumn(): string
     {
         /** @noinspection PhpUndefinedClassConstantInspection */
-        return defined('static::DELETED_AT') ? static::DELETED_AT : 'delete_transaction_id';
+        return defined('static::DELETED_AT')
+            ? static::DELETED_AT
+            : config('TransactionalSoftDeletes.deleted_at_column')
+                ?: 'delete_transaction_id';
     }
 
     /**
@@ -303,7 +265,7 @@ trait TransactionalSoftDeletesTrait
      *
      * @return string
      */
-    public function getQualifiedDeletedAtColumn()
+    public function getQualifiedDeletedAtColumn(): string
     {
         return "{$this->getTable()}.{$this->getDeletedAtColumn()}";
     }

@@ -1,30 +1,38 @@
 <?php
 
-namespace App\Cto\Database\TransactionalSoftDeletes;
+namespace Dddaaammmooo\TransactionalSoftDeletes;
 
+use Carbon\Carbon;
 use Eloquent;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
- * App\Cto\Database\TransactionalSoftDeletes\DeleteTransactionLog
+ * Class DeleteTransactionLog
  *
- * @property int $id
- * @property int $deleteTransactionId
- * @property string $modelClass
- * @property int $rowId
- * @property string|null $restoredAt
- * @property int|null $restoredById
- * @method static \Illuminate\Database\Eloquent\Builder|\App\Cto\Database\TransactionalSoftDeletes\DeleteTransactionLog whereDeleteTransactionId($value)
- * @method static \Illuminate\Database\Eloquent\Builder|\App\Cto\Database\TransactionalSoftDeletes\DeleteTransactionLog whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder|\App\Cto\Database\TransactionalSoftDeletes\DeleteTransactionLog whereModelClass($value)
- * @method static \Illuminate\Database\Eloquent\Builder|\App\Cto\Database\TransactionalSoftDeletes\DeleteTransactionLog whereRestoredAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder|\App\Cto\Database\TransactionalSoftDeletes\DeleteTransactionLog whereRestoredById($value)
- * @method static \Illuminate\Database\Eloquent\Builder|\App\Cto\Database\TransactionalSoftDeletes\DeleteTransactionLog whereRowId($value)
+ * Model that stores the details of the individual rows that were deleted from the database. This id done to
+ * facilitate the easier recovery of bulk deletions.
+ *
+ * @property int         $id
+ * @property int         $deleteTransactionId ID of the corresponding transaction in DatabaseTransaction model
+ * @property string      $modelClass          Fully qualified class name of model that was deleted
+ * @property int         $rowId               ID of the database model that was deleted
+ * @property Carbon|null $restoredAt          Date/Time the recovery was made (if any)
+ * @property int|null    $restoredById        ID of the user that recovered the model
+ *
+ * @method static Builder|DeleteTransactionLog whereDeleteTransactionId($value)
+ * @method static Builder|DeleteTransactionLog whereId($value)
+ * @method static Builder|DeleteTransactionLog whereModelClass($value)
+ * @method static Builder|DeleteTransactionLog whereRestoredAt($value)
+ * @method static Builder|DeleteTransactionLog whereRestoredById($value)
+ * @method static Builder|DeleteTransactionLog whereRowId($value)
+ *
  * @mixin \Eloquent
+ *
+ * @package Dddaaammmooo\TransactionalSoftDeletes
  */
 class DeleteTransactionLog extends Eloquent
 {
-    // Linking back to the delete_transaction table the delete_transaction_log table identifies the individual models
-    // that were deleted as part of the transaction. This is done to facilitate the easy recovery of bulk deletions.
+    use CamelCaseAttributesTrait;
 
     /** @var string $table */
     protected $table = 'delete_transaction_log';
@@ -36,16 +44,4 @@ class DeleteTransactionLog extends Eloquent
     protected $guarded = [
         'id',
     ];
-
-    // Allow for camelCased attribute access
-
-    public function getAttribute($key)
-    {
-        return parent::getAttribute(snake_case($key));
-    }
-
-    public function setAttribute($key, $value)
-    {
-        return parent::setAttribute(snake_case($key), $value);
-    }
 }
