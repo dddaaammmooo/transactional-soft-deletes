@@ -78,7 +78,10 @@ class Transaction
      */
     public static function getTimestamp(): Carbon
     {
-        if (isset(self::$timestamp))
+        // If no timestamp exists, or the automatic update of timestamps is enabled in the configuration, generate
+        // a new timestamp
+
+        if (isset(self::$timestamp) || config("transactional-soft-deletes.update_timestamp"))
         {
             return self::$timestamp;
         }

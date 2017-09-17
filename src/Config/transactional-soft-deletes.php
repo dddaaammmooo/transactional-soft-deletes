@@ -14,6 +14,10 @@ return [
     'column_row_id' => 'row_id',
     'column_model_class' => 'model_class',
 
+    // If you want to automatically generate a new timestamp for each deletion change the option below
+
+    'update_timestamp' => false,
+
     // Callback function used to retrieve the logged in users ID. If the value defined is not callable
     // the value will default to -1
 
