@@ -137,10 +137,18 @@ class controllerName
 }
 ```
 
-### Requesting New Time
+### Requesting New Timestamp For Each Delete
+
+#### Globally
 
 There may be times when you want to keep the same transaction ID but update the timestamp of
-associated records, to do this simply call the `newTimestamp()` function as shown below.
+associated records, to do this simply update the delete/restore timestamp of each
+item as it is updated/stored. To do this globally `update_timestamp` to `true`.
+
+#### Manually
+
+Alternatively you may want to may want to manually update the timestampm you can do this by
+calling the `newTimestamp()` function between deletions as shown below.
 
 ```php
 <?php
@@ -229,7 +237,7 @@ The `$deleteTransactionId` can be retrieved from the deleted models
     \Dddaaammmooo\TransactionalSoftDeletes\Transaction::restoreTransaction(1);
 
 ```
-he 
+
 ## Retrieving Details Of Deleted Records
 
 You can also retrieve various information about the deleted items contained within a transaction.
