@@ -134,7 +134,8 @@ class Model extends Eloquent
     {
         // Make sure the model is actually deleted
 
-        if (!$this->trashed()) {
+        if (!$this->trashed())
+        {
             return false;
         }
 
@@ -198,7 +199,7 @@ class Model extends Eloquent
 
         // If everything in the transaction has been restored mark the whole transaction as restored
 
-        Transaction::deleteIfEmpty($deleteTransactionId);
+        Transaction::restoreTransactionContainerIfEmpty($deleteTransactionId);
 
         // Commit changes to the database
 
@@ -221,7 +222,7 @@ class Model extends Eloquent
     /**
      * Register a restoring model event with the dispatcher
      *
-     * @param  Closure|string $callback
+     * @param Closure|string $callback
      */
     public static function restoring($callback): void
     {
@@ -231,7 +232,7 @@ class Model extends Eloquent
     /**
      * Register a restored model event with the dispatcher
      *
-     * @param  Closure|string $callback
+     * @param Closure|string $callback
      */
     public static function restored($callback): void
     {

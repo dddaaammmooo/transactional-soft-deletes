@@ -7,6 +7,8 @@ use Dddaaammmooo\TransactionalSoftDeletes\Models\DeleteTransaction;
 use Dddaaammmooo\TransactionalSoftDeletes\Models\DeleteTransactionLog;
 use Exception;
 use Illuminate\Database\Connection;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Collection;
 
 /**
  * Class Transaction
@@ -26,7 +28,7 @@ class Transaction
     /** @var Carbon $timestamp The current delete transaction timestamp */
     private static $timestamp;
 
-    /** @var array $modelInheritance Cache of the traits used by models we are recovering */
+    /** @var array $modelInheritance Cache of the models that have been validate as inheriting correctly */
     private static $modelInheritance = [];
 
     /**
@@ -197,32 +199,95 @@ class Transaction
     }
 
     /**
-     * Delete transaction from database if there are no remaining records associated with it
+     * Returns an array of deleted objects indexed by their class as stored in the database
+     *
+     * Not-Hydrated
+     *
+     * [
+     *      'App\Cat' => [1, 2, 3, 4],
+     *      'App\Dog' => [1, 2]
+     * ]
+     *
+     * Hydrated
+     *
+     * [
+     *      'App\Cat' => [object(Cat)#1, object(Cat)#2, object(Cat)#3, object(Cat)#4],
+     *      'App\Dog' => [object(Dog)#5, object(Dog)#6],
+     * ]
      *
      * @param int $deleteTransactionId
-     * @return int The number of records remaining in the transaction
+     * @param bool $hydrate
+     * @return array
      */
-    public static function deleteIfEmpty(int $deleteTransactionId): int
+    public static function getDeletedItems(int $deleteTransactionId, bool $hydrate = true): array
     {
-        $countRemaining = DeleteTransactionLog
+        $records = [];
+
+        // Grab the row ID and class of all deleted items in this transaction from the database
+
+        $deletedCollection =
+            DeleteTransactionLog::select(self::column('id'), self::column('model_class'))
+                                ->groupBy(self::column('model_class'))
+                                ->groupBy(self::column('id'))
+                                ->where(self::column('delete_transaction_id'), '=', $deleteTransactionId)
+                                ->get();
+
+        // Convert the collection into an array of row ID's indexed by their model class
+
+        $arrangedCollection = $deletedCollection->groupBy('model_class')
+                          ->transform(
+                              function ($item, $key)
+                              {
+                                  return $item->pluck(self::column('id'))->toArray();
+                              }
+                          )
+                          ->toArray();
+
+        // Iterate this array and retrieve the actual models that were deleted
+
+        foreach ($arrangedCollection as $modelClass => $ids)
+        {
+            if ($hydrate)
+            {
+                /** @var Builder $builder */
+                $builder = call_user_func([$modelClass, 'withTrashed']);
+                $builder->whereIn(self::column('id'), $ids);
+                $records[$modelClass] = $builder->get();
+            } else {
+                $records[$modelClass] = $ids;
+            }
+        }
+
+        return $records;
+    }
+
+    /**
+     * Mark transaction as restored if there are no remaining deleted records associated with it
+     *
+     * @param int $deleteTransactionId
+     * @return int The number of deleted records still in the transaction
+     */
+    public static function restoreTransactionContainerIfEmpty(int $deleteTransactionId): int
+    {
+        $countDeleted = DeleteTransactionLog
             ::where(self::column('delete_transaction_id'), '=', $deleteTransactionId)
             ->whereNull(self::column('restored_at'))
             ->count();
 
-        if ($countRemaining == 0)
+        if ($countDeleted == 0)
         {
-            // There were no remaining records, we can delete the transaction
+            // There were no remaining records, we can mark the transaction as restored
 
             $deleteTransaction = DeleteTransaction::whereId($deleteTransactionId)->first();
 
             if ($deleteTransaction)
             {
-                $deleteTransaction->restoredById = self::getUserId();
-                $deleteTransaction->restoredAt = self::getTimestamp();
+                $deleteTransaction->setColumn('restored_by_id', self::getUserId());
+                $deleteTransaction->setColumn('restored_at', self::getTimestamp());
                 $deleteTransaction->save();
             }
         }
 
-        return $countRemaining;
+        return $countDeleted;
     }
 }
