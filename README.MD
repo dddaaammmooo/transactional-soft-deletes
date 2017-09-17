@@ -19,52 +19,7 @@ by running the following command:
 
 ```
 php artisan vendor:publish --provider="Dddaaammmooo\TransactionalSoftDeletes"
-```
-
-If you are happy with the default database schema you can now migrate to create the required tables.
-Optionally you can modify the default migration files in `/laravel/database/migrations` to meet your 
-needs. However if you change the column names you will need to update the default configuration in 
-`/laravel/config/transactional-soft-deletes.php`.
-
-```php
 php artisan migrate
-```
-
-Next you need to add the `Dddaaammmooo\TransactionalSoftDeletes\Provider` class to
-the `providers` section of your `/laravel/config/app.php` file.
-
-```php
-<?php
-return [
-    // ..
-
-    'providers' => [
-        // ...
-        Dddaaammmooo\TransactionalSoftDeletes\Provider::class,
-    ],
-    
-    // ..
-    
-];
-```
-
-Next create an alias for the transaction handling class by adding
-the following to the `alias` section of the `/laravel/config/app.php` file.
-
-```php
-<?php
-
-return [
-    // ..
-
-    'aliases' => [
-        // ...
-        'Transaction' => Dddaaammmooo\TransactionalSoftDeletes\Transaction::class,
-    ],
-    
-    // ..
-    
-];
 ```
 
 If everything went to plan it should now be ready to use.
